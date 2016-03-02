@@ -59,8 +59,6 @@ def readCategories(infile):
             result[identifier] = description
         else:
             continue
-    for x, y in result.iteritems():
-        print x, y
     return result
 
 
@@ -78,7 +76,12 @@ def readNogs(infile):
     inf = IOTools.openFile(infile)
     for line in inf.readlines():
         data = line[:-1].split("\t")
-        nog, identifier = data
+        nog, identifier = data[0], data[-1]
+        # there's some strange "X" in here
+        # that isn't defined as a functional
+        # category. Discard these NOGs
+        if identifier == "X":
+            continue
         result[nog] = identifier
     return result
 
