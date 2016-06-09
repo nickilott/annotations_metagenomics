@@ -56,6 +56,7 @@ def readCategories(infile):
         if "[" in line:
             identifier = line[:-1].split("[")[1].split("]")[0]
             description = line[:-1].split("] ")[1]
+            description = description.strip()
             result[identifier] = description
         else:
             continue
