@@ -36,7 +36,7 @@ import sys
 import re
 import optparse
 
-import CGAT.Experiment as E
+import cgatcore.experiment as E
 
 def main( argv = None ):
     """script main.
@@ -65,7 +65,7 @@ def main( argv = None ):
                         , filter_list = None)
 
     ## add common options (-h/--help, ...) and parse command line 
-    (options, args) = E.Start( parser, argv = argv )
+    (options, args) = E.start( parser, argv = argv )
 
     if options.filter:
         assert options.filter_list, "must specify a list of pathways to keep"
@@ -86,7 +86,7 @@ def main( argv = None ):
         
 
     ## write footer and output benchmark information.
-    E.Stop()
+    E.stop()
 
 if __name__ == "__main__":
     sys.exit( main( sys.argv) )
