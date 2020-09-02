@@ -249,6 +249,7 @@ def main(argv=None):
     # read diff and output annotations
     result = collections.defaultdict(list)
     ps = []
+    fcs =[]
     taxa = []
     colours = []
     shapes = []
@@ -297,10 +298,13 @@ def main(argv=None):
         result[taxon].append(p)
         ps.append(p)
 
-    # get maximum pvalue and make the rest a % of that
-#    maxp = max(ps)
-#    ps = [(x/maxp)*100 for x in ps]
-
+        # fold changes
+        if data[2] == "NA":
+            fc = 0
+        else:
+            fc = data[2]
+        fcs.append(fc)
+        
     # output annotations
     options.stdout.write("%s\t%s\n" % ("clade_separation", "0.9"))
     for t, s in zip(taxa, shapes):
@@ -312,16 +316,28 @@ def main(argv=None):
     for t, c in taxon2colour.items():
         options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_font_size", 12))
 
-    for t, p in zip(taxa, ps):
-        if t in sig:
+    for t, p, f in zip(taxa, ps, fcs):
+        if t in sig and float(f) > 0:
             options.stdout.write("%s\t%s\t%s\n" % (t, "clade_marker_color", "r"))
             options.stdout.write("%s\t%s\t%f\n" % (t, "clade_marker_size", 200))
             options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_background_color", "r"))
-        else:
+            options.stdout.write("%s\t%s\t%s\t%s\n" % (t, "ring_height", 1, f))
+            options.stdout.write("%s\t%s\t%s\t%s\n" % (t, "ring_color", 1, "r"))
+            options.stdout.write("%s\t%s\t%s\t%s\n" % (t, "ring_alpha", 1, 0.5))
+
+        elif t in sig and float(f) < 0:
+            options.stdout.write("%s\t%s\t%s\n" % (t, "clade_marker_color", "b"))
+            options.stdout.write("%s\t%s\t%f\n" % (t, "clade_marker_size", 200))
+            options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_background_color", "b"))
+            options.stdout.write("%s\t%s\t%s\t%s\n" % (t, "ring_height", 1, float(f)*-1))
+            options.stdout.write("%s\t%s\t%s\t%s\n" % (t, "ring_color", 1, "b"))
+            options.stdout.write("%s\t%s\t%s\t%s\n" % (t, "ring_alpha", 1, 0.5))
+            
+        elif t not in sig:
             options.stdout.write("%s\t%s\t%f\n" % (t, "clade_marker_size", p))
 
     # only output annotation for highest-level and
-    # sig taxa
+    # additional labels
     if options.additional_labels:
         additional_labels = options.additional_labels.split(",")
     else:
@@ -329,11 +345,11 @@ def main(argv=None):
     for t, p in zip(taxa, ps):
         #if t in list(new_tree.keys()):
         if t in additional_labels or t in list(tree.keys()):
-#           if "_" in t:
-#               a =  random.sample(list(string.ascii_lowercase),1)[0] + ":" + t
-#           else:
-            a = t.split(".")[-1]
-            options.stdout.write("%s\t%s\t%s\n" % (t, "annotation", a))
+           if "_" in t:
+               a =  random.sample(list(string.ascii_lowercase),1)[0] + ":" + t
+           else:
+               a = t.split(".")[-1]
+               options.stdout.write("%s\t%s\t%s\n" % (t, "annotation", a))
 
     # write the tree out
     outf = open("input_tree.txt", "w")
