@@ -36,49 +36,91 @@ Command line options
 
 import sys
 import math
-import CGAT.IOTools as IOTools
+import cgatcore.iotools as IOTools
 import collections
-import CGAT.Experiment as E
+import cgatcore.experiment as E
 from matplotlib import colors
 import six
 import random
 import string
 
-def readTree(infile, level="family"):
+def readTree(infile, highest_level="family"):
     '''
-    read the tab separated tree file and map nodes
-    to use specified highest node
+    read the tree file and map nodes
+    to use specified highest node.
     '''
-    tree = collections.defaultdict(set)
-    inf = IOTools.openFile(infile)
-    # header line
+    taxa = collections.defaultdict(set)
+    inf = IOTools.open_file(infile)
     inf.readline()
     for line in inf.readlines():
-        data = line.strip("\n").split("\t")
-        # columns with taxa
-        d, k, p, c, o, f, g, s = data
-        if level == "domain":
-            l = 0
-        elif level == "kingdom":
-            l = 0
-        elif level == "phylum":
-            l = 1
-        elif level == "class":
-            l = 2
-        elif level == "order":
-            l = 3
-        elif level == "family":
-            l = 4
-        elif level == "genus":
-            l = 5
-        elif level == "species":
-            l = 6
+        data = line.strip("\n")
+
+        # use the length of the taxon name
+        # to determine the taxonomic level
+        # and add additional lower ranks
+        # depending if they contain this string
+        name_length = len(data.split("."))
+        if name_length == 1:
+            level = "kingdom"
+        elif name_length == 2:
+            level = "phylum"
+        elif name_length == 3:
+            level = "class"
+        elif name_length == 4:
+            level = "order"
+        elif name_length == 5:
+            level = "family"
+        elif name_length == 6:
+            level = "genus"
+        elif name_length == 7:
+            level = "species"
         else:
-            raise ValueError("level must be one of domain, Kingdom, phylum, class, order, family")
-        for t in [data[x] for x in range(l+1, len(data))]:
-            tree[data[l]].add(t)
-    inf.close()
-    return tree
+            try:
+                line = line.replace("._", "_")
+            except ValueError("malformatted line %s" % line):
+                continue
+
+        level_indices = {"kingdom": 0, "phylum": 1, "class": 2, "order": 3, "family": 4, "genus": 5, "species": 6}
+        highest_level_index = level_indices[highest_level]
+        if level_indices[level] == highest_level_index:
+            taxa[data].add(data)
+        elif level_indices[level] > highest_level_index:
+            taxon = ".".join(data.split(".")[0:highest_level_index+1])
+            taxa[taxon].add(data)
+        else:
+            continue
+    return(taxa)
+
+    
+    # tree = collections.defaultdict(set)
+    # inf = IOTools.open_file(infile)
+    # # header line
+    # inf.readline()
+    # for line in inf.readlines():
+    #     data = line.strip("\n").split(".")
+    #     assert len(data) == 7, "malformatted taxon mapping file, must have exactly 7 columns"
+    #     # columns with taxa
+    #     k, p, c, o, f, g, s = data
+    #     if level == "kingdom":
+    #         l = 0
+    #     elif level == "phylum":
+    #         l = 1
+    #     elif level == "class":
+    #         l = 2
+    #     elif level == "order":
+    #         l = 3
+    #     elif level == "family":
+    #         l = 4
+    #     elif level == "genus":
+    #         l = 5
+    #     elif level == "species":
+    #         l = 6
+    #     else:
+    #         raise ValueError("level must be one of Kingdom, phylum, class, order, family")
+    #     for t in [data[x] for x in range(l+1, len(data))]:
+    #         tree[data[l]].add(t)
+    # inf.close()
+    # return (tree)
         
 
 #############################################################
@@ -90,15 +132,15 @@ def writeInput(infile, tree):
     write the mapping file in the form that is taken
     by graphlan
     '''
-    inf = IOTools.openFile(infile)
+    inf = IOTools.open_file(infile)
     # header line
     inf.readline()
-    outf = IOTools.openFile("input.txt", "w")
+    outf = IOTools.open_file("input.txt", "w")
     done = set()
     for line in inf.readlines():
         data = line.strip("\n").split("\t")
         # columns with taxa
-        d, k, p, c, o, f, g, s = data
+        k, p, c, o, f, g, s = data
         new_string = ".".join([k, p, c, o, f, g, s])
         for taxon in tree.keys():
             if taxon in new_string:
@@ -113,7 +155,7 @@ def writeInput(infile, tree):
 
 def getColours(ncols):
     '''
-    get colours - lowe clades inherit from "highest level"
+    get colours - lower clades inherit from "highest level"
     clade
     '''
     colors_ = list(six.iteritems(colors.cnames))
@@ -161,14 +203,17 @@ def main(argv=None):
 
     parser.add_option("-k", "--keep", dest="keep", type="string",
                       help="keep all clades below these")
+
+    parser.add_option("--additional-labels", dest="additional_labels", type="string",
+                      help="by default just the highest level labels are shown. Here you can add additional labels")
     
     
     # add common options (-h/--help, ...) and parse command line
-    (options, args) = E.Start(parser, argv=argv)
+    (options, args) = E.start(parser, argv=argv)
 
     # read tree
     tree = readTree(options.taxa_map, options.highest_level)
-
+    
     # filter if neccessary
     new_tree = {}
     keep = set()
@@ -178,22 +223,28 @@ def main(argv=None):
         for t in to_keep:
             new_tree[t] = tree[t]
     else:
-        assert len(tree.keys()) < 159, "not enough colours to support n = %i clades, please filter" % len(tree)
+        assert len(list(tree.keys())) < 159, "not enough colours to support n = %i clades, please filter" % len(tree)
         new_tree = tree
 
-    # get those to keep
+    #get those to keep
     keep = set()
-    for taxon, rest in new_tree.iteritems():
+    for taxon, rest in new_tree.items():
         keep.add(taxon)
         for r in rest:
             keep.add(r)
 
     # get colours
-    ncols = len(new_tree.keys())
+    ncols = len(list(new_tree.keys()))
     colours = getColours(ncols)
     taxon2colour = {}
     for i in range(ncols):
-        taxon2colour[new_tree.keys()[i]] = colours[i]
+        taxon2colour[list(new_tree.keys())[i]] = colours[i]
+
+    # add in colours for all clade nodes that is
+    # based on the highest node
+    for h, r in new_tree.items():
+        for taxon in r:
+            taxon2colour[taxon] = taxon2colour[h]
 
     # read diff and output annotations
     result = collections.defaultdict(list)
@@ -205,17 +256,17 @@ def main(argv=None):
     for line in options.stdin.readlines():
 
         # skip header
-        if "taxa" and "logFC" in line:
+        if "taxa" and "log2FoldChange" in line:
             continue
+
         data = line.strip("\n").split("\t")
-        taxon = data[-1].replace('"', '')
+        taxon = data[0]
         if taxon not in keep:
             continue
 
         # assign colour
-        if taxon in taxon2colour.keys():
+        if taxon in list(taxon2colour.keys()):
             colour = taxon2colour[taxon]
-        
         else:
             colour = "NA"
         colours.append(colour)
@@ -225,11 +276,15 @@ def main(argv=None):
         
         # use -log10 p-value for clade size
         if options.use == "pval":
-            column = 3
+            column = 5
         elif options.use == "padj":
-            column = 4
+            column = 6
         else:
             raise ValueError("must use pval or padj, not %s for clade size" % options.use)
+
+        # catch NA pvalues
+        if data[column] == "NA":
+            data[column] = 1
         
         p = -math.log10(float(data[column]))
         if p >= 1.3:
@@ -241,12 +296,22 @@ def main(argv=None):
         p = p*100
         result[taxon].append(p)
         ps.append(p)
-        
+
     # get maximum pvalue and make the rest a % of that
 #    maxp = max(ps)
 #    ps = [(x/maxp)*100 for x in ps]
 
     # output annotations
+    options.stdout.write("%s\t%s\n" % ("clade_separation", "0.9"))
+    for t, s in zip(taxa, shapes):
+         options.stdout.write("%s\t%s\t%s\n" % (t, "clade_marker_shape", s))
+    for t, c in taxon2colour.items():
+         options.stdout.write("%s\t%s\t%s\n" % (t, "clade_marker_color", c))
+    for t, c in taxon2colour.items():
+        options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_background_color", c))
+    for t, c in taxon2colour.items():
+        options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_font_size", 12))
+
     for t, p in zip(taxa, ps):
         if t in sig:
             options.stdout.write("%s\t%s\t%s\n" % (t, "clade_marker_color", "r"))
@@ -255,28 +320,31 @@ def main(argv=None):
         else:
             options.stdout.write("%s\t%s\t%f\n" % (t, "clade_marker_size", p))
 
-    for t, s in zip(taxa, shapes):
-        options.stdout.write("%s\t%s\t%s\n" % (t, "clade_marker_shape", s))
-    for t, c in taxon2colour.iteritems():
-        options.stdout.write("%s\t%s\t%s\n" % (t, "clade_marker_color", c))
-    for t, c in taxon2colour.iteritems():
-        options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_background_color", c))
-
-    # only out put annotation for highest-level and
+    # only output annotation for highest-level and
     # sig taxa
+    if options.additional_labels:
+        additional_labels = options.additional_labels.split(",")
+    else:
+        additional_labels = []
     for t, p in zip(taxa, ps):
-        if t in sig or t in new_tree.keys():
-            if "_" in t:
-                a =  random.sample(list(string.lowercase),1)[0] + ":" + t
-            else:
-                a = t
+        #if t in list(new_tree.keys()):
+        if t in additional_labels or t in list(tree.keys()):
+#           if "_" in t:
+#               a =  random.sample(list(string.ascii_lowercase),1)[0] + ":" + t
+#           else:
+            a = t.split(".")[-1]
             options.stdout.write("%s\t%s\t%s\n" % (t, "annotation", a))
+
+    # write the tree out
+    outf = open("input_tree.txt", "w")
+    for x, y in new_tree.items():
+        for taxon in y:
+            outf.write(taxon + "\n")
+    outf.close()
             
-    # output the file for input i.e. the tree for taxa we want
-    writeInput(options.taxa_map, new_tree)
-    
+           
     # write footer and output benchmark information.
-    E.Stop()
+    E.stop()
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
