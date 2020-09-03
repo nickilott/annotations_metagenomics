@@ -343,14 +343,19 @@ def main(argv=None):
     else:
         additional_labels = []
     for t, p in zip(taxa, ps):
-        #if t in list(new_tree.keys()):
-        if t in additional_labels or t in list(tree.keys()):
-           if "_" in t:
-               a =  random.sample(list(string.ascii_lowercase),1)[0] + ":" + t
-           else:
-               a = t.split(".")[-1]
-               options.stdout.write("%s\t%s\t%s\n" % (t, "annotation", a))
-
+        if t in additional_labels:
+#           if "_" in t:
+#               a =  "".join(random.sample(list(string.ascii_lowercase),2)) + ":" + t.split(".")[-1]
+#           else:
+            a = t.split(".")[-1]
+            options.stdout.write("%s\t%s\t%s\n" % (t, "annotation", a))
+            options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_rotation", 90))
+            options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_font_size", 8))
+        elif t in list(tree.keys()):
+            a = t.split(".")[-1]
+            options.stdout.write("%s\t%s\t%s\n" % (t, "annotation", a))
+            options.stdout.write("%s\t%s\t%s\n" % (t, "annotation_font_size", 12))
+            
     # write the tree out
     outf = open("input_tree.txt", "w")
     for x, y in new_tree.items():
