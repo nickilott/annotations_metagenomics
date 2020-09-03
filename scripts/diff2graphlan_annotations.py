@@ -90,65 +90,8 @@ def readTree(infile, highest_level="family"):
         else:
             continue
     return(taxa)
-
-    
-    # tree = collections.defaultdict(set)
-    # inf = IOTools.open_file(infile)
-    # # header line
-    # inf.readline()
-    # for line in inf.readlines():
-    #     data = line.strip("\n").split(".")
-    #     assert len(data) == 7, "malformatted taxon mapping file, must have exactly 7 columns"
-    #     # columns with taxa
-    #     k, p, c, o, f, g, s = data
-    #     if level == "kingdom":
-    #         l = 0
-    #     elif level == "phylum":
-    #         l = 1
-    #     elif level == "class":
-    #         l = 2
-    #     elif level == "order":
-    #         l = 3
-    #     elif level == "family":
-    #         l = 4
-    #     elif level == "genus":
-    #         l = 5
-    #     elif level == "species":
-    #         l = 6
-    #     else:
-    #         raise ValueError("level must be one of Kingdom, phylum, class, order, family")
-    #     for t in [data[x] for x in range(l+1, len(data))]:
-    #         tree[data[l]].add(t)
-    # inf.close()
-    # return (tree)
         
 
-#############################################################
-#############################################################
-#############################################################
-
-def writeInput(infile, tree):
-    '''
-    write the mapping file in the form that is taken
-    by graphlan
-    '''
-    inf = IOTools.open_file(infile)
-    # header line
-    inf.readline()
-    outf = IOTools.open_file("input.txt", "w")
-    done = set()
-    for line in inf.readlines():
-        data = line.strip("\n").split("\t")
-        # columns with taxa
-        k, p, c, o, f, g, s = data
-        new_string = ".".join([k, p, c, o, f, g, s])
-        for taxon in tree.keys():
-            if taxon in new_string:
-                done.add(new_string)
-    for record in done:
-        outf.write(record + "\n")
-    outf.close()
-        
 #############################################################
 #############################################################
 #############################################################
